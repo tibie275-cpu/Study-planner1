@@ -30,53 +30,53 @@ quotes = [
     "할 수 있다고 믿는 사람은 결국 그렇게 된다."
 ]
 
-# ---------- 2. 커스텀 스타일 (화이트 & 모던 스타일) ----------
-st.markdown(f"""
+# ---------- 2. 커스텀 스타일 (오류 수정됨: 일반 문자열 사용) ----------
+st.markdown("""
 <style>
-    .stApp {{ background-color: #FFFFFF; }}
+    .stApp { background-color: #FFFFFF; }
     
-    .card {{
+    .card {
         background: #FFFFFF; padding: 1.5rem; border-radius: 15px;
         margin-bottom: 1.5rem; border: 1px solid #F0F0F0;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }}
+    }
     
-    .main-title {{
+    .main-title {
         font-size: 2rem; font-weight: 800; color: #333333;
         text-align: center; margin-bottom: 0.5rem;
-    }}
+    }
 
-    .quote-box {{
+    .quote-box {
         text-align: center; font-style: italic; color: #888888; margin-bottom: 2rem;
-    }}
+    }
 
     /* 달력 그리드 */
-    .race-container {{
+    .race-container {
         display: grid; grid-template-columns: repeat(7, 1fr);
         gap: 8px; margin-top: 10px;
     }
-    .race-box {{
+    .race-box {
         aspect-ratio: 1 / 1; background-color: #FFFFFF;
         border: 1px solid #EEEEEE; border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
         font-weight: 500; color: #BBBBBB; font-size: 0.8rem;
-    }}
-    .race-box.today {{ border: 2px solid #333333; color: #333333; }}
-    .race-box.completed {{ background-color: #333333; border-color: #333333; color: white; }}
+    }
+    .race-box.today { border: 2px solid #333333; color: #333333; }
+    .race-box.completed { background-color: #333333; border-color: #333333; color: white; }
 
-    /* 슬라이더 & 위젯 숫자 색상 수정 (빨간색 제거) */
-    div[data-testid="stSliderTickBar"] span, span[data-baseweb="typography"] {{
+    /* 슬라이더 & 위젯 숫자 색상 수정 */
+    div[data-testid="stSliderTickBar"] span, span[data-baseweb="typography"] {
         color: #333333 !important;
-    }}
-    div[role="slider"] {{ background-color: #333333 !important; border: 2px solid #333333 !important; }}
-    .st-ae {{ color: #333333 !important; }} /* 슬라이더 위 숫자 */
+    }
+    div[role="slider"] { background-color: #333333 !important; border: 2px solid #333333 !important; }
+    .st-ae { color: #333333 !important; }
 
     /* 버튼 스타일 */
-    div.stButton > button {{
+    div.stButton > button {
         background-color: #333333; color: white;
         border-radius: 8px; border: none; font-weight: 600;
-    }}
-    div.stButton > button:hover {{ background-color: #000000; border: none; color: white; }}
+    }
+    div.stButton > button:hover { background-color: #000000; border: none; color: white; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,29 +98,37 @@ def home():
     col_start, col_stop = st.columns(2)
     if col_start.button("🚀 START", use_container_width=True):
         st.session_state.timer_running = True
+        st.rerun()
     if col_stop.button("⏹️ STOP", use_container_width=True):
         st.session_state.timer_running = False
         st.rerun()
 
     if st.session_state.timer_running:
         placeholder = st.empty()
-        # 집중 시간
+        
+        # 1. 집중 시간
+        completed_focus = False
         for i in range(f_time * 60, -1, -1):
             if not st.session_state.timer_running: break
             m, s = divmod(i, 60)
             placeholder.markdown(f"<div style='font-size:3rem; text-align:center; padding:20px; color:#333333; font-weight:800;'>FOCUS<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
             time.sleep(1)
-        
-        # 휴식 시간 연동
-        if st.session_state.timer_running:
-            st.balloons()
+            if i == 0: completed_focus = True
+
+        # 2. 휴식 시간 자동 전환
+        if completed_focus and st.session_state.timer_running:
+            st.balloons() # 집중 완료 축하
+            time.sleep(1)
             for i in range(b_time * 60, -1, -1):
                 if not st.session_state.timer_running: break
                 m, s = divmod(i, 60)
                 placeholder.markdown(f"<div style='font-size:3rem; text-align:center; padding:20px; color:#2ECC71; font-weight:800;'>BREAK<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
                 time.sleep(1)
+            
+            # 모든 사이클 종료
             st.session_state.timer_running = False
             st.rerun()
+            
     st.markdown("</div>", unsafe_allow_html=True)
 
     # 🛌 기상/취침 시간 등록
@@ -132,17 +140,19 @@ def home():
     
     if t_col1.button("☀️ 지금 기상", use_container_width=True):
         st.session_state.sleep_log[today_str]["wake"] = now_kst().strftime("%H:%M")
+        st.rerun()
     if t_col2.button("🌙 지금 취침", use_container_width=True):
         st.session_state.sleep_log[today_str]["sleep"] = now_kst().strftime("%H:%M")
+        st.rerun()
     
     wake_t = st.session_state.sleep_log[today_str]["wake"] or "--:--"
     sleep_t = st.session_state.sleep_log[today_str]["sleep"] or "--:--"
-    st.markdown(f"<p style='text-align:center;'>기상: <b>{wake_t}</b> | 취침: <b>{sleep_t}</b></p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:center; margin-top:10px; font-size:1.1rem;'>기상: <b>{wake_t}</b> | 취침: <b>{sleep_t}</b></p>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ✨ 루틴 관리
     st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>✨ ROUTINE</div>", unsafe_allow_html=True)
-    r_input = st.text_input("루틴 추가", label_visibility="collapsed")
+    r_input = st.text_input("루틴 추가", label_visibility="collapsed", placeholder="새로운 루틴 입력...")
     if st.button("추가"):
         if r_input: st.session_state.routines.append({"task": r_input, "done": False}); st.rerun()
     for idx, item in enumerate(st.session_state.routines):
@@ -167,6 +177,11 @@ def planner():
                 st.rerun()
 
     st.markdown("### ⏳ 진행 및 관리")
+    # 미완료 항목 표시
+    pending_items = [i for i in st.session_state.planner if not i["완료여부"]]
+    if not pending_items:
+        st.info("진행 중인 계획이 없습니다. 새로운 계획을 세워보세요!")
+        
     for idx, item in enumerate(st.session_state.planner):
         if not item["완료여부"]:
             with st.expander(f"📍 {item['과목']} : {item['내용']} (목표: {item['목표']}h)"):
@@ -213,8 +228,9 @@ def stats():
     st.markdown(race_html, unsafe_allow_html=True)
     
     # 해당 날짜 상세 정보
+    st.markdown("---")
     st.markdown(f"**🔍 {selected_day}일 상세 리포트**")
-    day_plans = [i for i in st.session_state.planner if i["날짜"] == selected_date]
+    day_plans = [i for i in st.session_state.planner if i["날짜"] == selected_date and i["완료여부"]]
     day_sleep = st.session_state.sleep_log.get(str(selected_date), {"wake": "--:--", "sleep": "--:--"})
     
     col_s1, col_s2 = st.columns(2)
@@ -223,9 +239,9 @@ def stats():
     
     if day_plans:
         for p in day_plans:
-            st.write(f"- [{p['등록시간']}] {p['과목']}: {p['내용']} ({p['실제']}h / {p['성취도']})")
+            st.write(f"- [{p['등록시간']}] **{p['과목']}**: {p['내용']} ({p['실제']}h / {p['성취도']})")
     else:
-        st.write("기록이 없습니다.")
+        st.caption("완료된 공부 기록이 없습니다.")
     st.markdown("</div>", unsafe_allow_html=True)
 
     # 2. 통계 차트 (과목별, 주간/월별 평균)
@@ -238,7 +254,7 @@ def stats():
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("📚 과목별 공부 비중")
         fig = px.pie(df, values='실제', names='과목', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+        fig.update_layout(margin=dict(t=20, b=20, l=20, r=20))
         st.plotly_chart(fig, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -246,7 +262,7 @@ def stats():
         st.markdown("<div class='card'>", unsafe_allow_html=True)
         st.subheader("📈 평균 통계")
         
-        # 시간 변환 함수 (기상/취침 평균용)
+        # 시간 변환 함수
         def time_to_min(t_str):
             if not t_str or t_str == "--:--": return None
             h, m = map(int, t_str.split(':'))
@@ -263,7 +279,7 @@ def stats():
             avg_wake = sum(wake_mins) / len(wake_mins)
             m2.metric("평균 기상", f"{int(avg_wake//60):02d}:{int(avg_wake%60):02d}")
         else:
-            m2.metric("평균 기상", "데이터 없음")
+            m2.metric("평균 기상", "-")
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- 5. 메인 실행 및 하단 네비게이션 ----------
