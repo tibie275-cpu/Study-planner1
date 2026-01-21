@@ -6,200 +6,153 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 import plotly.express as px
 
-# ---------- 1. 기본 설정 및 테마 ----------
-st.set_page_config(
-    page_title="AI 스마트 스터디 플래너",
-    page_icon="📚",
-    layout="centered",
-)
+# ---------- 1. 설정 및 핑크 테마 ----------
+st.set_page_config(page_title="모찌의 핑크 스터디", page_icon="🌸", layout="centered")
 
-# 상태 관리 초기화
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-if "planner" not in st.session_state:
-    st.session_state.planner = []
-if "timer_running" not in st.session_state:
-    st.session_state.timer_running = False
+if "page" not in st.session_state: st.session_state.page = "home"
+if "planner" not in st.session_state: st.session_state.planner = []
+if "routines" not in st.session_state: st.session_state.routines = []
 
-# ---------- 2. 커스텀 스타일 (고급화) ----------
+# 핑크빛 커스텀 스타일
 st.markdown("""
 <style>
-    /* 전체 배경 */
-    .stApp { background-color: #f8f9fa; }
-    
-    /* 카드 스타일 */
+    .stApp { background-color: #FFF5F7; }
     .card {
         background: white;
         padding: 1.5rem;
-        border-radius: 20px;
+        border-radius: 25px;
         margin-bottom: 1rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        border: 1px solid #eee;
+        box-shadow: 0 10px 25px rgba(255, 182, 193, 0.2);
+        border: 2px solid #FFD1DC;
     }
-    
-    /* 타이틀 디자인 */
     .main-title {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #1E293B;
+        font-family: 'Nanum Gothic', sans-serif;
+        color: #FF85A2;
         text-align: center;
-        margin-bottom: 1.5rem;
+        font-weight: 900;
     }
-    
-    /* 타이머 박스 */
-    .timer-display {
-        font-size: 4rem;
-        font-weight: 800;
-        color: #4A90E2;
-        text-align: center;
-        background: #F1F5F9;
-        border-radius: 20px;
-        padding: 20px;
-        margin: 10px 0;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    
-    /* 하단 고정 네비게이션 느낌의 버튼 스타일 */
     div.stButton > button {
-        border-radius: 12px;
-        transition: all 0.3s;
+        background-color: #FFB6C1;
+        color: white;
+        border-radius: 20px;
+        border: none;
+        font-weight: bold;
+    }
+    div.stButton > button:hover {
+        background-color: #FF85A2;
+        color: white;
+    }
+    .timer-display {
+        font-size: 3.5rem;
+        font-weight: 900;
+        color: #FF4D6D;
+        text-align: center;
+        background: #FFF0F3;
+        border-radius: 30px;
+        padding: 15px;
+        border: 3px dashed #FFB6C1;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- 3. 유틸리티 함수 ----------
-def now_kst():
-    return datetime.now(ZoneInfo("Asia/Seoul"))
+# ---------- 2. 기능 구현 ----------
 
-quotes = [
-    "오늘의 노력이 내일의 나를 만든다.",
-    "지금 포기하면 평생 여기다.",
-    "공부하는 고통은 잠깐이지만 못 배운 고통은 평생이다.",
-    "느려도 괜찮다. 멈추지만 마라."
-]
-
-# ---------- 4. 페이지 구성 함수 ----------
-
-# [홈 페이지]
 def home():
-    st.markdown("<h1 class='main-title'>🏠 STUDY DASHBOARD</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-title'>🌸 MOZZI STUDY 🌸</h1>", unsafe_allow_html=True)
     
-    # 랜덤 명언 카드
-    st.markdown(f"""
-    <div class='card'>
-        <div style='color:#64748B; font-size:0.9rem; margin-bottom:5px;'>오늘의 한 문장</div>
-        <div style='font-size:1.1rem; font-weight:600;'>"{random.choice(quotes)}"</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 기상/취침 버튼 (상단 요약 기능 추가)
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🌅 기상 인증", use_container_width=True):
-            st.toast(f"기상 완료! ({now_kst().strftime('%H:%M')})")
-    with c2:
-        if st.button("🌙 취침 인증", use_container_width=True):
-            st.toast(f"오늘 하루 고생했어요! ({now_kst().strftime('%H:%M')})")
-
-    st.divider()
-
-    # [신규 추가] ⏱️ 뽀모도로 타이머 카드
-    st.markdown("<div class='card'><div style='font-weight:700; font-size:1.1rem;'>⏱️ 집중 타이머</div>", unsafe_allow_html=True)
-    t_col1, t_col2 = st.columns([1, 1])
+    # [1] 연속 뽀모도로 타이머
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; color:#FF85A2;'>⏱️ 쉬지않고 달리기!</h3>", unsafe_allow_html=True)
+    col_t1, col_t2 = st.columns(2)
+    f_min = col_t1.number_input("집중(분)", 1, 120, 25)
+    b_min = col_t2.number_input("휴식(분)", 1, 60, 5)
     
-    with t_col1:
-        mode = st.radio("모드", ["Focus(25m)", "Break(5m)"], label_visibility="collapsed")
-        target_mins = 25 if "Focus" in mode else 5
+    if st.button("💗 연속 타이머 시작!", use_container_width=True):
+        ph = st.empty()
+        # 집중 시간
+        for t in range(f_min * 60, -1, -1):
+            m, s = divmod(t, 60)
+            ph.markdown(f"<div class='timer-display'>🔥 집중!<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
+            time.sleep(1)
+        st.toast("집중 끝! 바로 휴식 시작할게요 🍬")
         
-    with t_col2:
-        if st.button("🚀 시작", use_container_width=True):
-            placeholder = st.empty()
-            for i in range(target_mins * 60, -1, -1):
-                mins, secs = divmod(i, 60)
-                placeholder.markdown(f"<div class='timer-display'>{mins:02d}:{secs:02d}</div>", unsafe_allow_html=True)
-                time.sleep(1)
-            st.balloons()
-            st.success("시간 종료! 고생하셨습니다.")
+        # 휴식 시간 바로 시작
+        for t in range(b_min * 60, -1, -1):
+            m, s = divmod(t, 60)
+            ph.markdown(f"<div class='timer-display'>🍬 휴식~<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
+            time.sleep(1)
+        st.balloons()
+        st.success("한 세트 완료! 정말 대단해요 🧸")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# [플래너 페이지]
-def planner():
-    st.markdown("<h1 class='main-title'>✍️ DAILY PLANNER</h1>", unsafe_allow_html=True)
+    # [2] 나만의 루틴 작성
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:#FF85A2;'>✨ 데일리 루틴</h3>", unsafe_allow_html=True)
+    new_rt = st.text_input("새 루틴 추가 (예: 물 1L 마시기)", key="rt_input")
+    if st.button("➕ 추가"):
+        if new_rt:
+            st.session_state.routines.append({"task": new_rt, "done": False})
+            st.rerun()
     
-    with st.expander("➕ 새 학습 계획 추가", expanded=True):
-        with st.form("planner_form", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            sub = col1.text_input("과목명", placeholder="예: 수학")
-            con = col2.text_input("공부 내용", placeholder="예: 미분법 문제풀이")
-            
-            goal = st.slider("목표 시간 (시간)", 0.5, 12.0, 1.0, step=0.5)
-            actual = st.slider("실제 공부 시간 (시간)", 0.0, 12.0, 0.0, step=0.5)
-            
-            if st.form_submit_button("기록하기"):
+    for idx, rt in enumerate(st.session_state.routines):
+        col_rt1, col_rt2 = st.columns([4, 1])
+        rt['done'] = col_rt1.checkbox(rt['task'], value=rt['done'], key=f"rt_{idx}")
+        if col_rt2.button("🗑️", key=f"del_{idx}"):
+            st.session_state.routines.pop(idx)
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+def planner():
+    st.markdown("<h1 class='main-title'>✍️ 플래너 기록</h1>", unsafe_allow_html=True)
+    
+    with st.markdown("<div class='card'>", unsafe_allow_html=True):
+        with st.form("plan_form"):
+            sub = st.text_input("과목명")
+            res = st.radio("성취도 선택", ["🤩 완벽(O)", "🤨 보통(△)", "😭 미흡(X)"], horizontal=True)
+            submitted = st.form_submit_button("기록하기 🎀")
+            if submitted:
                 st.session_state.planner.append({
-                    "날짜": date.today().strftime("%m-%d"),
-                    "과목": sub,
-                    "내용": con,
-                    "목표": goal,
-                    "실제": actual,
-                    "완료": actual >= goal
+                    "date": date.today(),
+                    "subject": sub,
+                    "status": res[0] # 첫 글자 아이콘만 저장
                 })
                 st.rerun()
 
     if st.session_state.planner:
-        st.markdown("### 📋 기록 리스트")
         df = pd.DataFrame(st.session_state.planner)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        if st.button("🗑️ 전체 삭제"):
-            st.session_state.planner = []
-            st.rerun()
+        st.write("### 💖 나의 기록")
+        st.table(df)
 
-# [통계 페이지]
-def stats():
-    st.markdown("<h1 class='main-title'>📊 STATISTICS</h1>", unsafe_allow_html=True)
+def calendar_view():
+    st.markdown("<h1 class='main-title'>📅 성취도 달력</h1>", unsafe_allow_html=True)
     
     if not st.session_state.planner:
-        st.info("아직 기록된 공부 데이터가 없어요. 플래너에서 첫 기록을 남겨보세요!")
+        st.info("기록이 있어야 달력을 꾸밀 수 있어요! 🌸")
         return
 
     df = pd.DataFrame(st.session_state.planner)
+    df['date'] = pd.to_datetime(df['date'])
     
-    # 상단 요약 지표
-    c1, c2, c3 = st.columns(3)
-    c1.metric("총 공부 시간", f"{df['실제'].sum()}h")
-    c2.metric("목표 달성률", f"{(df['완료'].mean()*100):.1f}%")
-    c3.metric("최다 과목", df['과목'].mode()[0] if not df.empty else "-")
+    # 귀여운 도트형 달력 시각화 (성취도를 점수로 환산)
+    score_map = {"🤩": 3, "🤨": 2, "😭": 1}
+    df['score'] = df['status'].map(score_map)
+    daily_score = df.groupby('date')['score'].sum().reset_index()
 
-    # 차트 섹션
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.subheader("과목별 시간 비중")
-    fig = px.pie(df, values='실제', names='과목', hole=0.4, 
-                 color_discrete_sequence=px.colors.qualitative.Pastel)
+    fig = px.scatter(daily_score, x='date', y=[1]*len(daily_score), size='score', 
+                     color='score', color_continuous_scale='PuRd',
+                     title="나의 핑크빛 공부 기록 🐾")
+    fig.update_layout(yaxis_visible=False, height=200, showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center;'>큰 방울일수록 열공했다는 뜻이에요! 🎀</p></div>", unsafe_allow_html=True)
 
-# ---------- 5. 메인 네비게이션 로직 ----------
-if st.session_state.page == "home":
-    home()
-elif st.session_state.page == "planner":
-    planner()
-elif st.session_state.page == "stats":
-    stats()
-
-# ---------- 6. 하단 고정형 네비게이션 ----------
+# ---------- 3. 네비게이션 ----------
 st.markdown("<br><br>", unsafe_allow_html=True)
-nav_col1, nav_col2, nav_col3 = st.columns(3)
+n1, n2, n3 = st.columns(3)
+if n1.button("🏠 홈"): st.session_state.page = "home"; st.rerun()
+if n2.button("✍️ 기록"): st.session_state.page = "planner"; st.rerun()
+if n3.button("📅 달력"): st.session_state.page = "calendar"; st.rerun()
 
-with nav_col1:
-    if st.button("🏠 홈", use_container_width=True):
-        st.session_state.page = "home"
-        st.rerun()
-with nav_col2:
-    if st.button("✍️ 플래너", use_container_width=True):
-        st.session_state.page = "planner"
-        st.rerun()
-with nav_col3:
-    if st.button("📊 통계", use_container_width=True):
-        st.session_state.page = "stats"
-        st.rerun()
+if st.session_state.page == "home": home()
+elif st.session_state.page == "planner": planner()
+elif st.session_state.page == "calendar": calendar_view()
