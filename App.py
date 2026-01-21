@@ -125,12 +125,22 @@ def home():
         if completed_focus and st.session_state.timer_running:
             st.balloons() # 집중 완료 축하
             
-            # [수정 2] 풍선과 동시에 소리 재생 (HTML5 Audio Autoplay 사용)
-            st.markdown("""
-                <audio autoplay>
-                    <source src="https://upload.wikimedia.org/wikipedia/commons/3/34/Sound_Effect_-_Positive_Bell_Ding.ogg" type="audio/ogg">
-                </audio>
-                """, unsafe_allow_html=True)
+# [수정된 부분] 타이머 종료 시 소리 재생 로직 (기존 audio 태그 대신 사용)
+if completed_focus and st.session_state.timer_running:
+    st.balloons() # 풍선 효과
+    
+    # 자바스크립트를 이용한 강제 재생 (브라우저 호환성 더 좋음)
+    st.components.v1.html(
+        """
+        <audio autoplay>
+            <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+        </audio>
+        """,
+        height=0,
+    )
+    
+    time.sleep(1)
+    # ... (이후 휴식 시간 로직은 동일)
             
             time.sleep(1)
             for i in range(b_time * 60, -1, -1):
