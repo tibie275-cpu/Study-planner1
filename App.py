@@ -10,7 +10,7 @@ import plotly.express as px
 # ---------- 1. 기본 설정 ----------
 st.set_page_config(
     page_title="Study Dashboard",
-    page_icon="☁️", 
+    page_icon="🏠", 
     layout="centered",
 )
 
