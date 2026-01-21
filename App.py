@@ -137,7 +137,7 @@ def home():
 
     # (이하 sleep_log, routine, planner, stats 함수 내용은 원본과 동일하게 유지)
     # ... [생략된 나머지 부분은 기존 코드와 100% 동일함] ...
-    st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>🛌 SLEEP LOG</div>", unsafe_allow_html=True)
+    st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>🛌 WAKE UP / SLEEP LOG</div>", unsafe_allow_html=True)
     t_col1, t_col2 = st.columns(2)
     today_str = str(date.today())
     if today_str not in st.session_state.sleep_log:
