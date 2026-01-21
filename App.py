@@ -3,14 +3,14 @@ import pandas as pd
 import random
 import time
 import calendar
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 import plotly.express as px
 
 # ---------- 1. 기본 설정 ----------
 st.set_page_config(
     page_title="Study Dashboard",
-    page_icon="☁️",
+    page_icon="☁️", 
     layout="centered",
 )
 
@@ -18,164 +18,263 @@ st.set_page_config(
 if "page" not in st.session_state: st.session_state.page = "home"
 if "planner" not in st.session_state: st.session_state.planner = []
 if "routines" not in st.session_state: st.session_state.routines = []
-if "pomodoro_running" not in st.session_state: st.session_state.pomodoro_running = False
-if "pomodoro_stop" not in st.session_state: st.session_state.pomodoro_stop = False
+if "timer_running" not in st.session_state: st.session_state.timer_running = False
+if "sleep_log" not in st.session_state: st.session_state.sleep_log = {} # {date: {"wake": time, "sleep": time}}
 
-# ---------- 2. 커스텀 스타일 ----------
-st.markdown("""
+# 인용구 리스트
+quotes = [
+    "오늘의 노력이 내일의 나를 만든다.",
+    "끝날 때까지 끝난 게 아니다.",
+    "공부할 때의 고통은 잠깐이지만, 못 배운 고통은 평생이다.",
+    "성공은 매일 반복되는 작은 노력의 합계이다.",
+    "할 수 있다고 믿는 사람은 결국 그렇게 된다."
+]
+
+# ---------- 2. 커스텀 스타일 (화이트 & 모던 스타일) ----------
+st.markdown(f"""
 <style>
-.stApp { background-color: #FFFFFF; }
+    .stApp {{ background-color: #FFFFFF; }}
+    
+    .card {{
+        background: #FFFFFF; padding: 1.5rem; border-radius: 15px;
+        margin-bottom: 1.5rem; border: 1px solid #F0F0F0;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }}
+    
+    .main-title {{
+        font-size: 2rem; font-weight: 800; color: #333333;
+        text-align: center; margin-bottom: 0.5rem;
+    }}
 
-.card {
-    background: white; padding: 1.5rem; border-radius: 20px;
-    margin-bottom: 1.5rem; border: 1px solid #EEEEEE;
-}
+    .quote-box {{
+        text-align: center; font-style: italic; color: #888888; margin-bottom: 2rem;
+    }}
 
-.main-title {
-    font-size: 2.2rem; font-weight: 800; color: #333333;
-    text-align: center; margin-bottom: 1rem;
-}
+    /* 달력 그리드 */
+    .race-container {{
+        display: grid; grid-template-columns: repeat(7, 1fr);
+        gap: 8px; margin-top: 10px;
+    }
+    .race-box {{
+        aspect-ratio: 1 / 1; background-color: #FFFFFF;
+        border: 1px solid #EEEEEE; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 500; color: #BBBBBB; font-size: 0.8rem;
+    }}
+    .race-box.today {{ border: 2px solid #333333; color: #333333; }}
+    .race-box.completed {{ background-color: #333333; border-color: #333333; color: white; }}
 
-.race-container {
-    display: grid; grid-template-columns: repeat(7, 1fr);
-    gap: 8px; margin-top: 10px;
-}
-.race-box {
-    aspect-ratio: 1 / 1; background-color: #FAFAFA;
-    border: 1px solid #DDDDDD; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: bold; color: #999999; font-size: 0.8rem;
-}
-.race-box.today { border: 2px solid #333333; color: #333333; }
-.race-box.completed { background-color: #333333; color: white; }
+    /* 슬라이더 & 위젯 숫자 색상 수정 (빨간색 제거) */
+    div[data-testid="stSliderTickBar"] span, span[data-baseweb="typography"] {{
+        color: #333333 !important;
+    }}
+    div[role="slider"] {{ background-color: #333333 !important; border: 2px solid #333333 !important; }}
+    .st-ae {{ color: #333333 !important; }} /* 슬라이더 위 숫자 */
 
-span[data-baseweb="slider"] span { color: #444444 !important; }
-
-div.stButton > button {
-    background-color: #333333; color: white;
-    border-radius: 12px; border: none; font-weight: bold;
-}
+    /* 버튼 스타일 */
+    div.stButton > button {{
+        background-color: #333333; color: white;
+        border-radius: 8px; border: none; font-weight: 600;
+    }}
+    div.stButton > button:hover {{ background-color: #000000; border: none; color: white; }}
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- 3. 유틸 ----------
-def now_kst():
-    return datetime.now(ZoneInfo("Asia/Seoul"))
+# ---------- 3. 유틸리티 ----------
+def now_kst(): return datetime.now(ZoneInfo("Asia/Seoul"))
 
-# ---------- 4. 페이지 ----------
+# ---------- 4. 페이지 함수 ----------
+
 def home():
     st.markdown("<h1 class='main-title'>STUDY DASHBOARD</h1>", unsafe_allow_html=True)
+    st.markdown(f"<div class='quote-box'>\"{random.choice(quotes)}\"</div>", unsafe_allow_html=True)
+    
+    # ⏱️ 뽀모도로 타이머 (정지/휴식 연동)
+    st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>⏱️ FOCUS TIMER</div>", unsafe_allow_html=True)
+    tc1, tc2 = st.columns(2)
+    f_time = tc1.number_input("집중(분)", 1, 120, 25)
+    b_time = tc2.number_input("휴식(분)", 1, 60, 5)
+    
+    col_start, col_stop = st.columns(2)
+    if col_start.button("🚀 START", use_container_width=True):
+        st.session_state.timer_running = True
+    if col_stop.button("⏹️ STOP", use_container_width=True):
+        st.session_state.timer_running = False
+        st.rerun()
 
-    QUOTES = [
-        "오늘의 집중이 내일의 실력이다.",
-        "완벽보다 완료.",
-        "지금 하는 게 제일 빠르다.",
-        "공부는 배신하지 않는다."
-    ]
-    st.markdown(
-        f"<p style='text-align:center;font-style:italic;'>“{QUOTES[date.today().toordinal() % len(QUOTES)]}”</p>",
-        unsafe_allow_html=True
-    )
-
-    st.markdown("<div class='card'><b>⏱️ 뽀모도로</b>", unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    f_time = c1.number_input("집중(분)", 1, 120, 25)
-    b_time = c2.number_input("휴식(분)", 1, 60, 5)
-
-    b1, b2 = st.columns(2)
-    start = b1.button("시작", use_container_width=True)
-    stop = b2.button("정지", use_container_width=True)
-
-    if stop:
-        st.session_state.pomodoro_stop = True
-        st.session_state.pomodoro_running = False
-
-    if start and not st.session_state.pomodoro_running:
-        st.session_state.pomodoro_running = True
-        st.session_state.pomodoro_stop = False
-        ph = st.empty()
-
+    if st.session_state.timer_running:
+        placeholder = st.empty()
+        # 집중 시간
         for i in range(f_time * 60, -1, -1):
-            if st.session_state.pomodoro_stop: break
+            if not st.session_state.timer_running: break
             m, s = divmod(i, 60)
-            ph.markdown(f"<h2 style='text-align:center;'>FOCUS<br>{m:02d}:{s:02d}</h2>", unsafe_allow_html=True)
+            placeholder.markdown(f"<div style='font-size:3rem; text-align:center; padding:20px; color:#333333; font-weight:800;'>FOCUS<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
             time.sleep(1)
-
-        if not st.session_state.pomodoro_stop:
-            for i in range(b_time * 60, -1, -1):
-                if st.session_state.pomodoro_stop: break
-                m, s = divmod(i, 60)
-                ph.markdown(f"<h2 style='text-align:center;'>BREAK<br>{m:02d}:{s:02d}</h2>", unsafe_allow_html=True)
-                time.sleep(1)
+        
+        # 휴식 시간 연동
+        if st.session_state.timer_running:
             st.balloons()
+            for i in range(b_time * 60, -1, -1):
+                if not st.session_state.timer_running: break
+                m, s = divmod(i, 60)
+                placeholder.markdown(f"<div style='font-size:3rem; text-align:center; padding:20px; color:#2ECC71; font-weight:800;'>BREAK<br>{m:02d}:{s:02d}</div>", unsafe_allow_html=True)
+                time.sleep(1)
+            st.session_state.timer_running = False
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        st.session_state.pomodoro_running = False
+    # 🛌 기상/취침 시간 등록
+    st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>🛌 SLEEP LOG</div>", unsafe_allow_html=True)
+    t_col1, t_col2 = st.columns(2)
+    today_str = str(date.today())
+    if today_str not in st.session_state.sleep_log:
+        st.session_state.sleep_log[today_str] = {"wake": None, "sleep": None}
+    
+    if t_col1.button("☀️ 지금 기상", use_container_width=True):
+        st.session_state.sleep_log[today_str]["wake"] = now_kst().strftime("%H:%M")
+    if t_col2.button("🌙 지금 취침", use_container_width=True):
+        st.session_state.sleep_log[today_str]["sleep"] = now_kst().strftime("%H:%M")
+    
+    wake_t = st.session_state.sleep_log[today_str]["wake"] or "--:--"
+    sleep_t = st.session_state.sleep_log[today_str]["sleep"] or "--:--"
+    st.markdown(f"<p style='text-align:center;'>기상: <b>{wake_t}</b> | 취침: <b>{sleep_t}</b></p>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
+    # ✨ 루틴 관리
+    st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>✨ ROUTINE</div>", unsafe_allow_html=True)
+    r_input = st.text_input("루틴 추가", label_visibility="collapsed")
+    if st.button("추가"):
+        if r_input: st.session_state.routines.append({"task": r_input, "done": False}); st.rerun()
+    for idx, item in enumerate(st.session_state.routines):
+        item['done'] = st.checkbox(item['task'], value=item['done'], key=f"r_{idx}")
     st.markdown("</div>", unsafe_allow_html=True)
 
 def planner():
     st.markdown("<h1 class='main-title'>DAILY PLANNER</h1>", unsafe_allow_html=True)
-
+    
     with st.markdown("<div class='card'>", unsafe_allow_html=True):
-        with st.form("plan"):
-            s1, s2 = st.columns(2)
-            sub = s1.text_input("과목")
-            con = s2.text_input("내용")
-            goal = st.slider("목표(h)", 0.5, 12.0, 1.0, 0.5)
-            if st.form_submit_button("추가"):
+        st.subheader("📅 계획 세우기")
+        with st.form("plan_form", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            sub = c1.text_input("과목명")
+            con = c2.text_input("공부 내용")
+            goal = st.slider("목표 시간 (h)", 0.5, 12.0, 1.0, step=0.5)
+            if st.form_submit_button("계획 확정 📌"):
                 st.session_state.planner.append({
-                    "날짜": date.today(), "과목": sub, "내용": con,
-                    "목표": goal, "실제": 0.0, "완료여부": False
+                    "id": time.time(), "날짜": date.today(), "등록시간": now_kst().strftime("%H:%M"),
+                    "과목": sub, "내용": con, "목표": goal, "실제": 0.0, "성취도": "미완료", "완료여부": False
                 })
                 st.rerun()
 
-    for i in st.session_state.planner:
-        if not i["완료여부"]:
-            with st.expander(f"{i['과목']} - {i['내용']}"):
-                a = st.slider("실제(h)", 0.0, 12.0, i["목표"], 0.5)
-                if st.button("완료"):
-                    i["실제"] = a
-                    i["완료여부"] = True
-                    st.rerun()
+    st.markdown("### ⏳ 진행 및 관리")
+    for idx, item in enumerate(st.session_state.planner):
+        if not item["완료여부"]:
+            with st.expander(f"📍 {item['과목']} : {item['내용']} (목표: {item['목표']}h)"):
+                with st.form(key=f"finish_{item['id']}"):
+                    actual = st.slider("실제 공부 시간 (h)", 0.0, 12.0, item['목표'], step=0.5)
+                    status = st.radio("성취도", ["완벽(O)", "보통(△)", "미흡(X)"], horizontal=True)
+                    f_col1, f_col2 = st.columns(2)
+                    if f_col1.form_submit_button("공부 완료 ✅"):
+                        item["실제"] = actual
+                        item["성취도"] = "O" if "완벽" in status else ("△" if "보통" in status else "X")
+                        item["완료여부"] = True
+                        st.rerun()
+                    if f_col2.form_submit_button("삭제 🗑️"):
+                        st.session_state.planner.pop(idx)
+                        st.rerun()
+
+    if any(i["완료여부"] for i in st.session_state.planner):
+        st.markdown("### 📋 완료된 기록")
+        df_comp = pd.DataFrame([i for i in st.session_state.planner if i["완료여부"]])
+        st.dataframe(df_comp[['과목', '내용', '목표', '실제', '성취도']], use_container_width=True, hide_index=True)
 
 def stats():
     st.markdown("<h1 class='main-title'>STATISTICS</h1>", unsafe_allow_html=True)
-
+    
     today = now_kst().date()
     year, month = today.year, today.month
-    _, last = calendar.monthrange(year, month)
+    
+    # 1. 월별 레이스 달력 & 상세 보기
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.subheader(f"📅 {year}년 {month}월 공부 기록")
+    done_dates = [i["날짜"] for i in st.session_state.planner if i["완료여부"]]
+    
+    # 달력 인터랙션 (날짜 선택)
+    selected_day = st.number_input("조회할 날짜 선택", 1, calendar.monthrange(year, month)[1], today.day)
+    selected_date = date(year, month, selected_day)
 
-    done = [i for i in st.session_state.planner if i["완료여부"]]
-    done_dates = [i["날짜"] for i in done]
+    # 시각적 달력
+    race_html = "<div class='race-container'>"
+    for d in range(1, calendar.monthrange(year, month)[1] + 1):
+        curr = date(year, month, d)
+        cls = "completed" if curr in done_dates else ("today" if curr == today else "")
+        race_html += f"<div class='race-box {cls}'>{d}</div>"
+    race_html += "</div>"
+    st.markdown(race_html, unsafe_allow_html=True)
+    
+    # 해당 날짜 상세 정보
+    st.markdown(f"**🔍 {selected_day}일 상세 리포트**")
+    day_plans = [i for i in st.session_state.planner if i["날짜"] == selected_date]
+    day_sleep = st.session_state.sleep_log.get(str(selected_date), {"wake": "--:--", "sleep": "--:--"})
+    
+    col_s1, col_s2 = st.columns(2)
+    col_s1.write(f"☀️ 기상: {day_sleep['wake']}")
+    col_s2.write(f"🌙 취침: {day_sleep['sleep']}")
+    
+    if day_plans:
+        for p in day_plans:
+            st.write(f"- [{p['등록시간']}] {p['과목']}: {p['내용']} ({p['실제']}h / {p['성취도']})")
+    else:
+        st.write("기록이 없습니다.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    grid = "<div class='race-container'>"
-    for d in range(1, last + 1):
-        cd = date(year, month, d)
-        cls = "completed" if cd in done_dates else "today" if cd == today else ""
-        grid += f"<div class='race-box {cls}'>{d}</div>"
-    grid += "</div>"
-    st.markdown(grid, unsafe_allow_html=True)
+    # 2. 통계 차트 (과목별, 주간/월별 평균)
+    completed = [i for i in st.session_state.planner if i["완료여부"]]
+    if completed:
+        df = pd.DataFrame(completed)
+        df['날짜'] = pd.to_datetime(df['날짜'])
+        
+        # 과목별 통계
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("📚 과목별 공부 비중")
+        fig = px.pie(df, values='실제', names='과목', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
+        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    if done:
-        df = pd.DataFrame(done)
-        df["날짜"] = pd.to_datetime(df["날짜"])
-        st.metric("총 공부시간", f"{df['실제'].sum()}h")
+        # 평균 통계
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.subheader("📈 평균 통계")
+        
+        # 시간 변환 함수 (기상/취침 평균용)
+        def time_to_min(t_str):
+            if not t_str or t_str == "--:--": return None
+            h, m = map(int, t_str.split(':'))
+            return h * 60 + m
+        
+        sleep_data = [v for k, v in st.session_state.sleep_log.items()]
+        wake_mins = [time_to_min(s['wake']) for s in sleep_data if time_to_min(s['wake']) is not None]
+        
+        avg_study = df.groupby('날짜')['실제'].sum().mean()
+        
+        m1, m2 = st.columns(2)
+        m1.metric("일평균 공부", f"{avg_study:.1f}h")
+        if wake_mins:
+            avg_wake = sum(wake_mins) / len(wake_mins)
+            m2.metric("평균 기상", f"{int(avg_wake//60):02d}:{int(avg_wake%60):02d}")
+        else:
+            m2.metric("평균 기상", "데이터 없음")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        subj = df.groupby("과목")["실제"].sum().reset_index()
-        st.plotly_chart(px.bar(subj, x="과목", y="실제"), use_container_width=True)
+# ---------- 5. 메인 실행 및 하단 네비게이션 ----------
 
-        week = df[df["날짜"] >= pd.Timestamp(today) - pd.Timedelta(days=6)]
-        month_df = df[df["날짜"].dt.month == month]
-        st.metric("주간", f"{week['실제'].sum()}h")
-        st.metric("월간", f"{month_df['실제'].sum()}h")
-
-# ---------- 5. 실행 ----------
 if st.session_state.page == "home": home()
 elif st.session_state.page == "planner": planner()
 elif st.session_state.page == "stats": stats()
 
+st.markdown("<br><br><br><br>", unsafe_allow_html=True)
 st.markdown("---")
-c1, c2, c3 = st.columns(3)
-if c1.button("Home"): st.session_state.page = "home"; st.rerun()
-if c2.button("Planner"): st.session_state.page = "planner"; st.rerun()
-if c3.button("Stats"): st.session_state.page = "stats"; st.rerun()
+nav_col1, nav_col2, nav_col3 = st.columns(3)
+if nav_col1.button("🏠 Home", use_container_width=True): st.session_state.page = "home"; st.rerun()
+if nav_col2.button("✍️ Planner", use_container_width=True): st.session_state.page = "planner"; st.rerun()
+if nav_col3.button("📊 Stats", use_container_width=True): st.session_state.page = "stats"; st.rerun()
