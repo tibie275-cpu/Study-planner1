@@ -30,6 +30,11 @@ quotes = [
     "할 수 있다고 믿는 사람은 결국 그렇게 된다."
 ]
 
+# [수정 1] 인용구 매일 변경 로직 추가 (날짜가 바뀌면 새로운 명언 선택)
+if "quote_date" not in st.session_state or st.session_state.quote_date != date.today():
+    st.session_state.quote_date = date.today()
+    st.session_state.daily_quote = random.choice(quotes)
+
 # ---------- 2. 커스텀 스타일 (오류 수정됨: 일반 문자열 사용) ----------
 st.markdown("""
 <style>
@@ -87,7 +92,8 @@ def now_kst(): return datetime.now(ZoneInfo("Asia/Seoul"))
 
 def home():
     st.markdown("<h1 class='main-title'>STUDY DASHBOARD</h1>", unsafe_allow_html=True)
-    st.markdown(f"<div class='quote-box'>\"{random.choice(quotes)}\"</div>", unsafe_allow_html=True)
+    # [수정 1 적용] 저장된 오늘의 인용구 표시
+    st.markdown(f"<div class='quote-box'>\"{st.session_state.daily_quote}\"</div>", unsafe_allow_html=True)
     
     # ⏱️ 뽀모도로 타이머 (정지/휴식 연동)
     st.markdown("<div class='card'><div style='font-weight:700; margin-bottom:10px;'>⏱️ FOCUS TIMER</div>", unsafe_allow_html=True)
@@ -118,6 +124,14 @@ def home():
         # 2. 휴식 시간 자동 전환
         if completed_focus and st.session_state.timer_running:
             st.balloons() # 집중 완료 축하
+            
+            # [수정 2] 풍선과 동시에 소리 재생 (HTML5 Audio Autoplay 사용)
+            st.markdown("""
+                <audio autoplay>
+                    <source src="https://upload.wikimedia.org/wikipedia/commons/3/34/Sound_Effect_-_Positive_Bell_Ding.ogg" type="audio/ogg">
+                </audio>
+                """, unsafe_allow_html=True)
+            
             time.sleep(1)
             for i in range(b_time * 60, -1, -1):
                 if not st.session_state.timer_running: break
