@@ -3,24 +3,6 @@ import pandas as pd
 import random
 import time
 import calendar
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
-import plotly.express as px
-
-# ✅ CSS는 import 다음에
-st.markdown("""
-<style>
-/* 상단 메뉴 숨기기 */
-#MainMenu {visibility: hidden;}
-footer {visibility: hidden;}
-header {visibility: hidden;}
-</style>
-""", unsafe_allow_html=True)
-import streamlit as st
-import pandas as pd
-import random
-import time
-import calendar
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 import plotly.express as px
