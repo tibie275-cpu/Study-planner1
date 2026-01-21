@@ -1,3 +1,15 @@
+st.markdown("""
+<style>
+/* 상단 햄버거 메뉴 숨기기 */
+#MainMenu {visibility: hidden;}
+
+/* 우측 하단 Streamlit 로고 숨기기 (일부 환경에서만 적용) */
+footer {visibility: hidden;}
+
+/* Fork 영역 약화 */
+header {visibility: hidden;}
+</style>
+""", unsafe_allow_html=True)
 import streamlit as st
 import pandas as pd
 import random
