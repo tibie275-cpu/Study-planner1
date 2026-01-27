@@ -1,0 +1,3 @@
+# 2번 앱 (스터디 플래너)
+conn = st.connection("gsheets", type=GSheetsConnection)
+df = conn.read(spreadsheet=url, worksheet="플래너") # worksheet 이름 지정
